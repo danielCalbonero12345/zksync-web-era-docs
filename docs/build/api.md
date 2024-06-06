@@ -372,6 +372,32 @@ curl -X POST -H "Content-Type: application/json" \
 }
 ```
 
+### `zks_getBridgehubContract`
+
+Returns L1 address of the Bridgehub contract.
+
+#### Inputs
+
+None.
+
+#### curl example
+
+```curl
+curl -X POST -H "Content-Type: application/json" \
+--data '{"jsonrpc": "2.0", "id": 1, "method": "zks_getBridgehubContract", "params": [  ]}' \
+"https://mainnet.era.zksync.io"
+```
+
+#### Output
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": "0x35a54c8c757806eb6820629bc82d90e056394c92",
+  "id": 1
+}
+```
+
 ### `zks_getBytecodeByHash`
 
 Returns bytecode of a transaction given by its hash.

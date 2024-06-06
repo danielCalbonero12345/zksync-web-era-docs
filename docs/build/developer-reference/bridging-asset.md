@@ -25,12 +25,11 @@ Addresses of tokens on L2 will always differ from the same token L1 address. Als
 At this moment, WETH bridging is not supported.
 :::
 
-
-## Default bridge and Bridgehub
+## Default bridges
 
 You can get the default bridge addresses using the [`zks_getBridgeContracts`](../api.md#zks-getbridgecontracts) endpoint or [`getDefaultBridgeAddresses`](../sdks/js/providers.md#getdefaultbridgeaddresses) method of `Provider`. Similar methods are available in the other SDKs.
 
-You can get the address of the Bridgehub contract using the [`zks_getBridgehubContract`](../api.md#zks-getbridgehubcontract) endpoint or [`getBridgehubContractAddress`](../sdks/js/providers.md#getbridgehubaddress) method of `Provider`.
+You can get the address of the Bridgehub contract using the [`zks_getBridgehubContract`](../api.md#zks-getbridgehubcontract) endpoint or [`getBridgehubContractAddress`](../sdks/js/providers.md#getbridgehubcontractaddress) method of `Provider`.
 
 ### Deposits (to L2)
 

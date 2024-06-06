@@ -482,6 +482,23 @@ const provider = Provider.getDefaultProvider(types.Network.Sepolia);
 console.log(`Default bridges: ${toJSON(await provider.getDefaultBridgeAddresses())}`);
 ```
 
+### `getBridgehubContractAddress`
+
+Returns the address of the zkSync Era Bridgehub contract on L1.
+
+```ts
+async getBridgehubContractAddress(): Promise<Address>
+```
+
+#### Example
+
+```ts
+import { Provider, types } from "zksync-ethers";
+
+const provider = Provider.getDefaultProvider(types.Network.Sepolia);
+console.log(`Bridgehub contract: ${await provider.getBridgehubContractAddress()}`);
+```
+
 ### `getDefaultProvider`
 
 Static method which returns a Provider object from the RPC URL or localhost.
