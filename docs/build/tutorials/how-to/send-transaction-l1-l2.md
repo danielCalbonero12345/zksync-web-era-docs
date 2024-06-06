@@ -20,7 +20,7 @@ Along with zkSync Era's built-in censorship resistance that requires multi-layer
 
 1. Import the zkSync Era library or contract containing the required functionality.
 
-   The import gives access to the [`IZkSync.sol`](https://github.com/matter-labs/era-contracts/blob/main/l1-contracts/contracts/zksync/interfaces/IZkSync.sol) inherited interfaces that include the gas estimation functionality.
+   The import gives access to the [`IBridgehub.sol`](https://github.com/matter-labs/era-contracts/blob/360a9183c2435bb8846f7047edcdb8a75b7a887c/l1-contracts/contracts/bridgehub/IBridgehub.sol) interface that includes the gas estimation functionality.
 
    You can do it using yarn (recommended), or [download the contracts](https://github.com/matter-labs/era-contracts) from the repo.
 
@@ -119,6 +119,7 @@ Along with zkSync Era's built-in censorship resistance that requires multi-layer
 
 5. Get the base cost by calling the [`l2TransactionBaseCost`](https://github.com/matter-labs/era-contracts/blob/87cd8d7b0f8c02e9672c0603a821641a566b5dd8/l1-contracts/contracts/zksync/interfaces/IMailbox.sol#L131) function with:
 
+   - The chain ID of the target ZK chain as `_chainId`.
    - The gas price returned at step 2 as `_gasPrice`.
    - The gas value returned at step 3 as `_l2GasLimit`.
    - A constant representing how much gas is required to publish a byte of data from L1 to L2 as `_l2GasPerPubdataByteLimit`. At the time of writing, the JavaScript API provides this constant as [`REQUIRED_L1_TO_L2_GAS_PER_PUBDATA_LIMIT`](../../sdks/js/utils.md#gas).
@@ -128,6 +129,7 @@ Along with zkSync Era's built-in censorship resistance that requires multi-layer
 
    ```solidity
    function l2TransactionBaseCost(
+       uint256 _chainId,
        uint256 _gasPrice,
        uint256 _l2GasLimit,
        uint256 _l2GasPerPubdataByteLimit
@@ -141,14 +143,17 @@ Along with zkSync Era's built-in censorship resistance that requires multi-layer
        gasLimit: BigNumberish;
        gasPerPubdataByte?: BigNumberish;
        gasPrice?: BigNumberish;
+       chainId?: BigNumberish;
    }): Promise<BigNumber> {
        const zksyncContract = await this.getMainContract();
        const parameters = { ...layer1TxDefaults(), ...params };
        parameters.gasPrice ??= await this._providerL1().getGasPrice();
        parameters.gasPerPubdataByte ??= REQUIRED_L1_TO_L2_GAS_PER_PUBDATA_LIMIT;
+       parameters.chainId ??= (await this.getNetwork()).chainId;
 
        return BigNumber.from(
            await zksyncContract.l2TransactionBaseCost(
+               parameters.chainId,
                parameters.gasPrice,
                parameters.gasLimit,
                parameters.gasPerPubdataByte
@@ -169,7 +174,7 @@ Along with zkSync Era's built-in censorship resistance that requires multi-layer
    }
    ```
 
-7. Send the transaction, including the gas price and base cost in the value parameters, by calling the [`requestL2Transaction`](https://github.com/matter-labs/era-contracts/blob/87cd8d7b0f8c02e9672c0603a821641a566b5dd8/l1-contracts/contracts/zksync/interfaces/IMailbox.sol#L121) function.
+7. Send the transaction, including the gas price and base cost in the value parameters, by calling the [`requestL2TransactionTwoBridges`](https://github.com/matter-labs/era-contracts/blob/360a9183c2435bb8846f7047edcdb8a75b7a887c/l1-contracts/contracts/bridgehub/Bridgehub.sol#L264) or [`requestL2TransactionDirect`](https://github.com/matter-labs/era-contracts/blob/360a9183c2435bb8846f7047edcdb8a75b7a887c/l1-contracts/contracts/bridgehub/Bridgehub.sol#L218).
 
    Include the gas limit value from step 3 as `_l2GasLimit` and the `REQUIRED_L1_TO_L2_GAS_PER_PUBDATA_LIMIT` constant as `_l2GasPerPubdataByteLimit`.
 
@@ -179,15 +184,45 @@ Along with zkSync Era's built-in censorship resistance that requires multi-layer
    @tab Solidity
 
    ```solidity
-   function requestL2Transaction(
-       address _contractL2,
-       uint256 _l2Value,
-       bytes calldata _calldata,
-       uint256 _l2GasLimit,
-       uint256 _l2GasPerPubdataByteLimit,
-       bytes[] calldata _factoryDeps,
-       address _refundRecipient
+   /// This method assumes that either ether is the base token or the msg.sender has approved mintValue allowance for the shared bridge.
+   /// This means this is not ideal for contract calls, as the contract would have to handle token allowance of the base token.
+   function requestL2TransactionDirect(
+       L2TransactionRequestDirect calldata _request
    ) external payable returns (bytes32 canonicalTxHash);
+
+   struct L2TransactionRequestDirect {
+       uint256 chainId;
+       uint256 mintValue;
+       address l2Contract;
+       uint256 l2Value;
+       bytes l2Calldata;
+       uint256 l2GasLimit;
+       uint256 l2GasPerPubdataByteLimit;
+       bytes[] factoryDeps;
+       address refundRecipient;
+   }
+
+    /// This method assumes that either ether is the base token or
+    /// the msg.sender has approved the shared bridge with the mintValue,
+    /// and also the necessary approvals are given for the second bridge.
+    /// Each contract that handles the users ERC20 tokens needs approvals from the user, this contract allows
+    /// the user to approve for each token only its respective bridge
+    /// This function is great for contract calls to L2, the secondBridge can be any contract.
+   function requestL2TransactionTwoBridges(
+       L2TransactionRequestTwoBridgesOuter calldata _request
+   ) external payable returns (bytes32 canonicalTxHash);
+
+   struct L2TransactionRequestTwoBridgesOuter {
+       uint256 chainId;
+       uint256 mintValue;
+       uint256 l2Value;
+       uint256 l2GasLimit;
+       uint256 l2GasPerPubdataByteLimit;
+       address refundRecipient;
+       address secondBridgeAddress;
+       uint256 secondBridgeValue;
+       bytes secondBridgeCalldata;
+   }
    ```
 
    @tab TypeScript

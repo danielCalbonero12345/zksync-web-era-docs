@@ -18,7 +18,7 @@ Many use cases require multi-layer interoperability, such as:
 
 ## L1 to L2 communication
 
-L1 to L2 communication is governed by the [`IZkSync.sol`](https://github.com/matter-labs/era-contracts/blob/main/l1-contracts/contracts/zksync/interfaces/IZkSync.sol) inherited interfaces.
+L1 to L2 communication is governed by the [`IBridgehub.sol`](https://github.com/matter-labs/era-contracts/blob/360a9183c2435bb8846f7047edcdb8a75b7a887c/l1-contracts/contracts/bridgehub/IBridgehub.sol) interface.
 
 :::tip
 
@@ -69,7 +69,7 @@ Learn [how to send a message from L2 to L1 using zksync-ethers](../tutorials/how
 
 Once a message is sent, a proof can be retrieved using the [`zks_getL2ToL1LogProof` JSON RPC API method](../api.md#zks-getl2tol1logproof).
 
-This proof can be verified on L1 using the [`proveL2MessageInclusion`](https://github.com/matter-labs/era-contracts/blob/6250292a98179cd442516f130540d6f862c06a16/l1-contracts/contracts/zksync/facets/Mailbox.sol#L35) function, which returns a boolean value indicating whether the message was successfully sent to L1.
+This proof can be verified on L1 using the [`proveL2MessageInclusion`](https://github.com/matter-labs/era-contracts/blob/360a9183c2435bb8846f7047edcdb8a75b7a887c/l1-contracts/contracts/bridgehub/IBridgehub.sol#L71) function, which returns a boolean value indicating whether the message was successfully sent to L1.
 
 The example contract below receives the proof and the information related to the transaction sent to the L2 messenger contract. It then verifies that the message was included in an L2 block.
 
@@ -78,7 +78,7 @@ The example contract below receives the proof and the information related to the
 pragma solidity ^0.8.0;
 
 // Importing zkSync contract interface
-import "@matterlabs/zksync-contracts/l1/contracts/zksync/interfaces/IZkSync.sol";
+import "@matterlabs/zksync-contracts/l1/contracts/bridgehub/IBridgehub.sol";
 
 contract Example {
   // NOTE: The zkSync contract implements only the functionality for proving that a message belongs to a block
@@ -89,29 +89,32 @@ contract Example {
   mapping(uint256 => mapping(uint256 => bool)) isL2ToL1MessageProcessed;
 
   function consumeMessageFromL2(
-    // The address of the zkSync smart contract.
+    // The chain ID of the target ZK chain from which the message was sent, e.g. 324 for Era mainnet.
+    uint256 _chainId,
+    // The address of the Bridgehub smart contract.
     // It is not recommended to hardcode it during the alpha testnet as regenesis may happen.
-    address _zkSyncAddress,
-    // zkSync block number in which the message was sent
-    uint256 _l2BlockNumber,
+    address _bridgehubAddress,
+    // zkSync batch number in which the message was sent
+    uint256 _l2BatchNumber,
     // Message index, that can be received via API
     uint256 _index,
-    // The tx number in block
-    uint16 _l2TxNumberInBlock,
+    // The tx number in batch
+    uint16 _l2TxNumberInBatch,
     // The message that was sent from l2
     bytes calldata _message,
     // Merkle proof for the message
     bytes32[] calldata _proof
   ) external {
     // check that the message has not been processed yet
-    require(!isL2ToL1MessageProcessed[_l2BlockNumber][_index]);
+    require(!isL2ToL1MessageProcessed[_l2BatchNumber][_index]);
 
-    IZkSync zksync = IZkSync(_zkSyncAddress);
+    IBridgehub bridgehub = IBridgehub(_bridgehubAddres);
     address someSender = 0x19A5bFCBE15f98Aa073B9F81b58466521479DF8D;
-    L2Message memory message = L2Message({sender: someSender, data: _message, txNumberInBlock:_l2TxNumberInBlock});
+    L2Message memory message = L2Message({sender: someSender, data: _message, txNumberInBatch: _l2TxNumberInBatch});
 
-    bool success = zksync.proveL2MessageInclusion(
-      _l2BlockNumber,
+    bool success = bridgehub.proveL2MessageInclusion(
+      _chainId,
+      _l2BatchNumber,
       _index,
       message,
       _proof
@@ -119,7 +122,7 @@ contract Example {
     require(success, "Failed to prove message inclusion");
 
     // Mark message as processed
-    isL2ToL1MessageProcessed[_l2BlockNumber][_index] = true;
+    isL2ToL1MessageProcessed[_l2BatchNumber][_index] = true;
   }
 }
 
@@ -129,4 +132,4 @@ contract Example {
 
 1. All transaction types are supported by the priority queue.
 
-2. The priority queue must be fully permissionless to prevent malicious activity. For example, malicious users might send multiple transactions which push up the block gas limit to unworkable levels. To mitigate against this, submitting transactions to the priority queue is no longer free and users must pay a fee to the operator. To obtain the cost for sending an L2 to L1 message, please refer to [step 5 of how to send an L1 to L2 transaction](../../build/tutorials/how-to/send-transaction-l1-l2.md#step-by-step).
+2. The priority queue must be fully permissionless to prevent malicious activity. For example, malicious users might send multiple transactions which push up the block gas limit to unworkable levels. To mitigate against this, submitting transactions to the priority queue is no longer free and users must pay a fee to the operator. To obtain the cost for sending an L1 to L2 transaction, please refer to [step 5 of how to send an L1 to L2 transaction](../../build/tutorials/how-to/send-transaction-l1-l2.md#step-by-step).
